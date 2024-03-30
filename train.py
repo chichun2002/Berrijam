@@ -118,7 +118,7 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
             best_acc = epoch_acc
             best_model = model
 
-        print()
+        # print()
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
@@ -195,14 +195,14 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
 
     dataset_train = create_dataset(train_images, train_labels, data_transforms['train'])
     dataset_val = create_dataset(train_images, train_labels, data_transforms['val'])
-    
+
     dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
 
     # Create the output directory and don't error if it already exists.
     os.makedirs(train_output_dir, exist_ok=True)
 
     # train a model for this task
-    optimizer = optim.Adam(model.parameters(), lr=0.003)
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     criterion = nn.CrossEntropyLoss()
 
