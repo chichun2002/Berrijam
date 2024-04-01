@@ -47,12 +47,20 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     :return: TBD
     """
     model = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
+    #model = torchvision.models.efficientnet_v2_m(weights='IMAGENET1K_V1')
     for param in model.parameters():
         param.requires_grad = False
 
     # Parameters of newly constructed modules have requires_grad=True by default
-    num_ftrs = model.hidden_dim
-    model.heads = nn.Linear(num_ftrs, 2)
+    num_features = model.hidden_dim
+    #num_features = model.classifier[-1].in_features
+
+    # Replace the last fully connected layer with a new linear layer for binary classification
+    #model.classifier = nn.Linear(num_features, 2)
+    model.heads = nn.Linear(num_features, 2)
+    
+    
+    
     return model
 
 
@@ -70,62 +78,101 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
     # The output from train can be one or more model files that will be saved in save_model function.
     since = time.time()
     best_acc = 0.0
-    # best_model = model
+    best_loss = float('inf')
+
+
+    train_losses = []
+    val_losses = []
+    train_accs = []
+    val_accs = []
 
     for epoch in range(num_epochs):
         print(f'Epoch {epoch}/{num_epochs - 1}')
         print('-' * 10)
 
-        phase = 'train'
-        model.train()  # Set model to training mode
+        # Each epoch has a training and validation phase
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
 
-        running_loss = 0.0
-        running_corrects = 0
+            running_loss = 0.0
+            running_corrects = 0
+         
+
+            # Iterate over data.
+            for inputs, labels in dataloader:
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                # Zero the parameter gradients
+                optimizer.zero_grad()
         
-        # Iterate over data.
-        for inputs, labels in dataloader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+                # Forward
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+                    # Backward + optimize only if in training phase
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
 
-            # forward
-            # track history if only in train
-            with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                loss = criterion(outputs, labels)
+                # Statistics
+                running_loss += loss.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
 
-                # backward + optimize only if in training phase
-                if phase == 'train':
-                    loss.backward()
-                    optimizer.step()
+            epoch_loss = running_loss / size
+            epoch_acc = running_corrects.double() / size
 
-            # statistics
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
-        if phase == 'train':
-            scheduler.step()
+            if phase == 'train':
+                scheduler.step()
+                train_losses.append(epoch_loss)
+                train_accs.append(epoch_acc)
+                
+            else:
+                val_losses.append(epoch_loss)
+                val_accs.append(epoch_acc)
 
-        epoch_loss = running_loss / size
-        epoch_acc = running_corrects.double() / size
+            print(f'{phase.capitalize()} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
-        print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            if phase == 'val' and (epoch_acc > best_acc or (epoch_acc == best_acc and epoch_loss < best_loss)):
+                best_acc = epoch_acc
+                best_loss = epoch_loss
+                best_model = model
 
-        # deep copy the model
-        if  epoch_acc > best_acc:
-            best_acc = epoch_acc
-            best_model = model
-
-        # print()
+        print()
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    print(f'Best val Acc: {best_acc:4f}')
+    print(f'Best val Acc: {best_acc:.4f}')
+    print(f'Corresponding Loss: {best_loss:.4f}')
 
-    # load best model weights
+    # Plotting training and validation loss/accuracy curves
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(train_losses, label='Training Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(train_accs, label='Training Accuracy')
+    plt.plot(val_accs, label='Validation Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
     model = best_model
+    
     return model
 
 
