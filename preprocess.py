@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 
 import random 
+from PIL import Image
 
 from common import load_image_labels, load_predict_image_names, load_single_image
 
@@ -28,8 +29,8 @@ def load_train_test(image_dir: str, image_list: str):
 
     pos = []
     neg = []
-    for filename, label in image_filenames, image_label:
-        if label is "Yes":
+    for filename, label in zip(list(image_label['Filename']),list(image_label['Is Epic'])):
+        if (label == "Yes"):
             pos.append(filename)
         else:
             neg.append(filename)
@@ -37,7 +38,7 @@ def load_train_test(image_dir: str, image_list: str):
     pos_test = pos.pop(random.randrange(len(pos)))
     neg_test = neg.pop(random.randrange(len(neg)))
 
-    return pos, pos_test, neg, neg_test
+    return pos, [pos_test], neg, [neg_test]
 
 def rotation(image):
     '''
@@ -117,17 +118,15 @@ def crop():
 
 def processed_data(image_dir: str, image_list: str):
     data = load_train_test(image_dir, image_list)
-    
     expanded = []
     for set in data:
         for image_name in set:
             image_path = os.path.join(image_dir, image_name)
-            image = load_single_image(image_path)
-            rots = rotation(image)
-            pads = pad(image)
-            per = pers(image)
-            affine = aff(image)
-            gaus = blur(image)
-            expanded.append(rots + pads + per + affine + gaus + image)
+            image = Image.open(image_path)
+            expanded.append(rotation(image))
+            expanded.append(pad(image))
+            expanded.append(pers(image))
+            expanded.append(aff(image))
+            expanded.append(blur(image))
     
     return expanded[0], expanded[1], expanded[2], expanded[3]
