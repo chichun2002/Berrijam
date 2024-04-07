@@ -125,6 +125,7 @@ def processed_data(image_dir: str, image_list: str):
         for image_name in set:
             image_path = os.path.join(image_dir, image_name)
             image = Image.open(image_path)
+            expanded.append(image)
             expanded.append(rotation(image))
             expanded.append(pad(image))
             expanded.append(pers(image))
@@ -138,12 +139,13 @@ def augmented_data_to_csv(image_dir: str, image_list: str):
     Writes the images names to csv and saves images
     '''
     image_list_file_path = os.path.join(image_dir, image_list)
-    image_list_file = pd.read_csv(image_list_file_path)
+    image_list_file = []
 
     data = processed_data(image_dir,image_list)
     dataset = 0
     for set in data:
         i = 0
+
         for augmented_image in set:
             label = 'Yes'
             if dataset is 3 or dataset is 4:
@@ -152,6 +154,11 @@ def augmented_data_to_csv(image_dir: str, image_list: str):
             imagename = f'augmented_image_{i}_{label}.png'
             if dataset is 1 or dataset is 3:
                 imagename = f'augmented_training_image_{i}_{label}.png'
+
+            if i is 0:
+                imagename = f'image_{i}_{label}.png'
+                if dataset is 1 or dataset is 3:
+                    imagename = f'training_image_{i}_{label}.png'
 
             savepath = os.path.join(image_dir, imagename)
             save_image(augmented_image, savepath)
