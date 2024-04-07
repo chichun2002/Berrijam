@@ -1,10 +1,13 @@
 import os
 from typing import Any
 
+import pandas as pd
+
 import torch
 from torchvision.transforms import v2
 from torchvision.io import read_image
-#crop imports
+from torchvision.utils import save_image
+
 import cv2
 import numpy as np
 
@@ -24,7 +27,6 @@ def load_train_test(image_dir: str, image_list: str):
     Loads the images and splits them into the test and train
     '''
     image_list_file = os.path.join(image_dir, image_list)
-    image_filenames = load_predict_image_names(image_list_file)
     image_label = load_image_labels(image_list_file)
 
     pos = []
@@ -130,3 +132,34 @@ def processed_data(image_dir: str, image_list: str):
             expanded.append(blur(image))
     
     return expanded[0], expanded[1], expanded[2], expanded[3]
+
+def augmented_data_to_csv(image_dir: str, image_list: str):
+    '''
+    Writes the images names to csv and saves images
+    '''
+    image_list_file_path = os.path.join(image_dir, image_list)
+    image_list_file = pd.read_csv(image_list_file_path)
+
+    data = processed_data(image_dir,image_list)
+    dataset = 0
+    for set in data:
+        i = 0
+        for augmented_image in set:
+            label = 'Yes'
+            if dataset is 3 or dataset is 4:
+                label = 'No'
+
+            imagename = f'augmented_image_{i}_{label}.png'
+            if dataset is 1 or dataset is 3:
+                imagename = f'training_augmented_image_{i}_{label}.png'
+
+            savepath = os.path.join(image_dir, imagename)
+            save_image(augmented_image, savepath)
+            
+            new_image = {'Filename': imagename, 'Is Epic': label}
+            image_list_file.append(new_image, ignore_index=True)
+
+            image_list_file.to_csv(image_list_file_path, index=False)
+            i += 1
+        dataset += 1
+
