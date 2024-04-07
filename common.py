@@ -129,7 +129,6 @@ def save_model(model: Any, model_name: str, target: str, output_dir: str):
     """
     # TODO: implement your model saving code here
     # Create output directory if it doesn't exist
-    # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
     # Define file path for saving model
