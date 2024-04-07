@@ -4,7 +4,8 @@ import time
 from typing import Any
 
 from PIL import Image
-
+from typing import List, Tuple
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -39,32 +40,52 @@ def parse_args():
     return args
 
 
-def load_train_resources(resource_dir: str = 'resources') -> Any:
+def load_train_resources(resource_dir: str = 'resources') -> List[Tuple[str, Any]]:
     """
     Load any resources (i.e. pre-trained models, data files, etc) here.
     Make sure to submit the resources required for your algorithms in the sub-folder 'resources'
     :param resource_dir: the relative directory from train.py where resources are kept.
     :return: TBD
     """
-    model = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
-    #model = torchvision.models.efficientnet_v2_m(weights='IMAGENET1K_V1')
-    for param in model.parameters():
+    models = []
+    
+    # Load the first model (Swin Transformer)
+    model_swin = torchvision.models.swin_v2_b(weights='IMAGENET1K_V1')
+    for param in model_swin.parameters():
+        param.requires_grad = False 
+    
+    num_features_swin = model_swin.head.in_features
+    model_swin.head = nn.Linear(num_features_swin, 2)
+    models.append(("Swin Transformer", model_swin))
+
+    # Load the second model (Vit)
+    model_vit = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
+    for param in model_vit.parameters():
         param.requires_grad = False
-
-    # Parameters of newly constructed modules have requires_grad=True by default
-    num_features = model.hidden_dim
-    #num_features = model.classifier[-1].in_features
-
-    # Replace the last fully connected layer with a new linear layer for binary classification
-    #model.classifier = nn.Linear(num_features, 2)
-    model.heads = nn.Linear(num_features, 2)
+    num_features_vit = model_vit.hidden_dim
+    model_vit.heads = nn.Linear(num_features_vit, 2)
+    models.append(("Vit_l", model_vit))
     
-    
-    
-    return model
+    # Load the second model (Vit)
+    model_vit = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
+    for param in model_vit.parameters():
+        param.requires_grad = False
+    num_features_vit = model_vit.hidden_dim
+    model_vit.heads = nn.Linear(num_features_vit, 2)
+    models.append(("Vit_b", model_vit))
 
+    # # Load the third model (EfficientNet)
+    # model_efficientnet = torchvision.models.efficientnet_v2_m(weights='IMAGENET1K_V1')
+    # for param in model_efficientnet.parameters():
+    #     param.requires_grad = False
+    # num_features_efficientnet = model_efficientnet.classifier[-1].in_features
+    # model_efficientnet.classifier = nn.Linear(num_features_efficientnet, 2)
+    # models.append(("EfficientNet", model_efficientnet))
 
-def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
+    return models
+    
+
+def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
     """
     Trains a classification model using the training images and corresponding labels.
 
@@ -146,30 +167,33 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
         print()
 
     time_elapsed = time.time() - since
+    print(f'Model: {name}')
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
     print(f'Best val Acc: {best_acc:.4f}')
     print(f'Corresponding Loss: {best_loss:.4f}')
 
     # Plotting training and validation loss/accuracy curves
-    import matplotlib.pyplot as plt
-
+    
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
-    plt.plot(train_losses, label='Training Loss')
-    plt.plot(val_losses, label='Validation Loss')
+    plt.plot(train_losses, label=f'Training Loss ({name})')
+    plt.plot(val_losses, label=f'Validation Loss ({name})')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.plot(train_accs, label='Training Accuracy')
-    plt.plot(val_accs, label='Validation Accuracy')
+    plt.plot(train_accs, label=f'Training Accuracy ({name})')
+    plt.plot(val_accs, label=f'Validation Accuracy ({name})')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.legend()
 
     plt.tight_layout()
-    plt.show()
+    # Save the plot in the current working directory
+    plot_file_path = f"{name}_training_curves.png"
+    plt.savefig(plot_file_path)
+    print(f"Training curves saved successfully at {plot_file_path}")
 
     model = best_model
     
@@ -191,10 +215,6 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     :param target_column_name: Name of the target column within the CSV file
     :param train_output_dir: the folder to save training output.
     """
-
-    # load pre-trained models or resources at this stage.
-    model = load_train_resources()
-    model = model.to(device)
 
     # load label file
     labels_file_path = os.path.join(train_input_dir, train_labels_file_name)
@@ -222,6 +242,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             train_images.append(image)
         except Exception as ex:
             print(f"Error loading {index}: {filename} due to {ex}")
+    
     print(f"Loaded {len(train_labels)} training images and labels")
 
     data_transforms = {
@@ -240,23 +261,25 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         ]),
     }
 
-    dataset_train = create_dataset(train_images, train_labels, data_transforms['train'])
-    dataset_val = create_dataset(train_images, train_labels, data_transforms['val'])
+    dataset_train = create_dataset(train_images[:8], train_labels[:8], data_transforms['train'])
+    dataset_val = create_dataset(train_images[8:], train_labels[8:], data_transforms['val'])
 
     dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
 
     # Create the output directory and don't error if it already exists.
     os.makedirs(train_output_dir, exist_ok=True)
 
-    # train a model for this task
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     criterion = nn.CrossEntropyLoss()
 
-    model = train('output', model, 50, dataloaders['train'], len(dataset_train), optimizer, exp_lr_scheduler, criterion)
-
-    # save model
-    save_model(model, target_column_name, train_output_dir)
+    # load pre-trained models or resources at this stage.
+    models = load_train_resources()
+    for name, model in models:
+        model = model.to(device)
+        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+        model = train('output', model, name, 50, dataloaders['train'], len(dataset_train), optimizer, exp_lr_scheduler, criterion)
+        # save model
+        save_model(model, name, target_column_name, train_output_dir)
 
 
 if __name__ == '__main__':

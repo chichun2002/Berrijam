@@ -96,7 +96,7 @@ def load_single_image(image_file_path: str) -> Image:
 # Model Loading and Saving Functions
 ########################################################################################################################
 
-def save_model(model: Any, target: str, output_dir: str):
+def save_model(model: Any, model_name: str, target: str, output_dir: str):
     """
     Given a model and target label, save the model file in the output_directory.
 
@@ -129,15 +129,16 @@ def save_model(model: Any, target: str, output_dir: str):
     """
     # TODO: implement your model saving code here
     # Create output directory if it doesn't exist
+    # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
     # Define file path for saving model
-    model_file_path = os.path.join(output_dir, f"{target}_model.pth")
+    model_file_path = os.path.join(output_dir, f"{model_name}_{target}_model.pth")
 
     # Save the model
     torch.save(model.state_dict(), model_file_path)
 
-    print(f"Model saved successfully at {model_file_path}")
+    print(f"Model '{model_name}' saved successfully at {model_file_path}")
 
 
 def load_model(trained_model_dir: str, target_column_name: str) -> Any:
