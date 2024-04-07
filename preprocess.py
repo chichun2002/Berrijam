@@ -151,7 +151,7 @@ def augmented_data_to_csv(image_dir: str, image_list: str):
 
             imagename = f'augmented_image_{i}_{label}.png'
             if dataset is 1 or dataset is 3:
-                imagename = f'training_augmented_image_{i}_{label}.png'
+                imagename = f'augmented_training_image_{i}_{label}.png'
 
             savepath = os.path.join(image_dir, imagename)
             save_image(augmented_image, savepath)
