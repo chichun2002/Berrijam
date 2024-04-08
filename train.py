@@ -19,7 +19,7 @@ from PIL import Image
 from tempfile import TemporaryDirectory
 
 from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset
-
+from preprocess import augmented_data_to_csv
 
 ########################################################################################################################
 
@@ -50,21 +50,21 @@ def load_train_resources(resource_dir: str = 'resources') -> List[Tuple[str, Any
     models = []
     
     # Load the first model (Swin Transformer)
-    model_swin = torchvision.models.swin_v2_b(weights='IMAGENET1K_V1')
-    for param in model_swin.parameters():
-        param.requires_grad = False 
+    # model_swin = torchvision.models.swin_v2_b(weights='IMAGENET1K_V1')
+    # for param in model_swin.parameters():
+    #     param.requires_grad = False 
     
-    num_features_swin = model_swin.head.in_features
-    model_swin.head = nn.Linear(num_features_swin, 2)
-    models.append(("Swin Transformer", model_swin))
+    # num_features_swin = model_swin.head.in_features
+    # model_swin.head = nn.Linear(num_features_swin, 2)
+    # models.append(("Swin Transformer", model_swin))
 
     # Load the second model (Vit)
-    model_vit = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
-    for param in model_vit.parameters():
-        param.requires_grad = False
-    num_features_vit = model_vit.hidden_dim
-    model_vit.heads = nn.Linear(num_features_vit, 2)
-    models.append(("Vit_l", model_vit))
+    # model_vit = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
+    # for param in model_vit.parameters():
+    #     param.requires_grad = False
+    # num_features_vit = model_vit.hidden_dim
+    # model_vit.heads = nn.Linear(num_features_vit, 2)
+    # models.append(("Vit_l", model_vit))
     
     # Load the second model (Vit)
     model_vit = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
@@ -75,7 +75,7 @@ def load_train_resources(resource_dir: str = 'resources') -> List[Tuple[str, Any
     models.append(("Vit_b", model_vit))
 
     # # Load the third model (EfficientNet)
-    # model_efficientnet = torchvision.models.efficientnet_v2_m(weights='IMAGENET1K_V1')
+    # model_efficientnet = torchvision.models.efficientnet_b4(weights='IMAGENET1K_V1')
     # for param in model_efficientnet.parameters():
     #     param.requires_grad = False
     # num_features_efficientnet = model_efficientnet.classifier[-1].in_features
@@ -216,6 +216,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     :param train_output_dir: the folder to save training output.
     """
 
+    augmented_data_to_csv(train_input_dir, train_labels_file_name)
     # load label file
     labels_file_path = os.path.join(train_input_dir, train_labels_file_name)
     df_labels = load_image_labels(labels_file_path)
@@ -223,6 +224,9 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     # load in images and labels
     train_images = []
     train_labels = []
+    augmented_images = []
+    augmented_labels = []
+
     # Now iterate through every record and load in the image data files
     # Given the small number of data samples, iterrows is not a big performance issue.
     for index, row in df_labels.iterrows():
@@ -231,25 +235,30 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             label = row[target_column_name]
             if label == 'Yes':
                 label = 1
-            if label == 'No':
+            elif label == 'No':
                 label = 0
 
             print(f"Loading image file: {filename}")
             image_file_path = os.path.join(train_input_dir, filename)
             image = load_single_image(image_file_path)
 
-            train_labels.append(label)
-            train_images.append(image)
+            # Check if the filename contains "augmented"
+            if 'augmented' in filename.lower():
+                augmented_labels.append(label)
+                augmented_images.append(image)
+            else:
+                train_labels.append(label)
+                train_images.append(image)
         except Exception as ex:
             print(f"Error loading {index}: {filename} due to {ex}")
-    
+
     print(f"Loaded {len(train_labels)} training images and labels")
+    print(f"Loaded {len(augmented_labels)} augmented images and labels")
 
     data_transforms = {
         'train': transforms.Compose([
             transforms.Resize(224),
             transforms.CenterCrop(224),
-            transforms.AutoAugment(policy= transforms.AutoAugmentPolicy.IMAGENET),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
@@ -261,7 +270,13 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         ]),
     }
 
-    dataset_train = create_dataset(train_images[:8], train_labels[:8], data_transforms['train'])
+    # Combine regular training data (first 8 images) and augmented data
+    combined_train_images = train_images[:8] + augmented_images
+    combined_train_labels = train_labels[:8] + augmented_labels
+
+    # Create dataset with combined data
+    dataset_train = create_dataset(combined_train_images, combined_train_labels, data_transforms['train'])
+    
     dataset_val = create_dataset(train_images[8:], train_labels[8:], data_transforms['val'])
 
     dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
