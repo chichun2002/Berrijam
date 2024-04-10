@@ -18,6 +18,7 @@ from PIL import Image
 from tempfile import TemporaryDirectory
 
 from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset
+from preprocess import preprocess
 
 
 ########################################################################################################################
