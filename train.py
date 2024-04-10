@@ -46,7 +46,7 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     :param resource_dir: the relative directory from train.py where resources are kept.
     :return: TBD
     """
-    model = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
+    model = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
     for param in model.parameters():
         param.requires_grad = False
 
@@ -68,6 +68,7 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
     # TODO: Implement your logic to train a problem specific model here
     # Along the way you might want to save training stats, logs, etc in the output_dir
     # The output from train can be one or more model files that will be saved in save_model function.
+    print(size)
     since = time.time()
     best_acc = 0.0
     # best_model = model
@@ -76,47 +77,50 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
         print(f'Epoch {epoch}/{num_epochs - 1}')
         print('-' * 10)
 
-        phase = 'train'
-        model.train()  # Set model to training mode
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                    model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
 
-        running_loss = 0.0
-        running_corrects = 0
-        
-        # Iterate over data.
-        for inputs, labels in dataloader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+            running_loss = 0.0
+            running_corrects = 0
+            
+            # Iterate over data.
+            for inputs, labels in dataloader[phase]:
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
+                # zero the parameter gradients
+                optimizer.zero_grad()
 
-            # forward
-            # track history if only in train
-            with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                loss = criterion(outputs, labels)
+                # forward
+                # track history if only in train
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
 
-                # backward + optimize only if in training phase
-                if phase == 'train':
-                    loss.backward()
-                    optimizer.step()
+                    # backward + optimize only if in training phase
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
 
-            # statistics
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
-        if phase == 'train':
-            scheduler.step()
+                # statistics
+                running_loss += loss.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
+            if phase == 'train':
+                scheduler.step()
 
-        epoch_loss = running_loss / size
-        epoch_acc = running_corrects.double() / size
+            epoch_loss = running_loss / size[phase]
+            epoch_acc = running_corrects.double() / size[phase]
 
-        print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
-        # deep copy the model
-        if  epoch_acc > best_acc:
-            best_acc = epoch_acc
-            best_model = model
+            # deep copy the model
+            if phase == 'val' and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model = model
 
         # print()
 
@@ -182,6 +186,10 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             transforms.Resize(224),
             transforms.CenterCrop(224),
             transforms.AutoAugment(policy= transforms.AutoAugmentPolicy.IMAGENET),
+            # transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
+            # transforms.ColorJitter(brightness=.5, hue=.3),
+            # transforms.RandomResizedCrop(size=(224,224)),
+            # transforms.ElasticTransform(alpha=250.0),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
@@ -193,8 +201,8 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         ]),
     }
 
-    dataset_train = create_dataset(train_images, train_labels, data_transforms['train'])
-    dataset_val = create_dataset(train_images, train_labels, data_transforms['val'])
+    dataset_train = create_dataset(train_images[:14], train_labels[:14], data_transforms['train'])
+    dataset_val = create_dataset(train_images[14:], train_labels[14:], data_transforms['val'])
 
     dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
 
@@ -206,7 +214,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     criterion = nn.CrossEntropyLoss()
 
-    model = train('output', model, 50, dataloaders['train'], len(dataset_train), optimizer, exp_lr_scheduler, criterion)
+    model = train('output', model, 50, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
 
     # save model
     save_model(model, target_column_name, train_output_dir)
