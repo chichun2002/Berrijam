@@ -18,29 +18,9 @@ from common import load_image_labels, load_predict_image_names, load_single_imag
 
 def ran_number(length):
     list = []
-    for i in range(length):
+    for _ in range(length):
         list.append(random.randint(1,100))
     return list
-
-def load_train_test(image_dir: str, image_list: str):
-    '''
-    Loads the images and splits them into the test and train
-    '''
-    image_list_file = os.path.join(image_dir, image_list)
-    image_label = load_image_labels(image_list_file)
-
-    pos = []
-    neg = []
-    for filename, label in zip(list(image_label['Filename']),list(image_label['Is Epic'])):
-        if (label == "Yes"):
-            pos.append(filename)
-        else:
-            neg.append(filename)
-
-    pos_test = pos.pop(random.randrange(len(pos)))
-    neg_test = neg.pop(random.randrange(len(neg)))
-
-    return pos, [pos_test], neg, [neg_test]
 
 def rotation(image):
     '''
@@ -85,7 +65,6 @@ def generate_data(image_dir: str, image_list: str):
     '''
     Generate augmented data and return list of images with corresponding list of labels
     '''
-    data = load_train_test(image_dir, image_list)
     expanded = []
     for set in data:
         for image_name in set:
