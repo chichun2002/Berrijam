@@ -3,18 +3,13 @@ from typing import Any
 
 import pandas as pd
 
-import torch
 from torchvision.transforms import v2
-from torchvision.io import read_image
-from torchvision.utils import save_image
 
 import cv2
 import numpy as np
 
 import random 
 from PIL import Image
-
-from common import load_image_labels, load_predict_image_names, load_single_image
 
 def ran_number(length):
     list = []
@@ -61,21 +56,25 @@ def blur(image):
     blurred_images = [blurrer(image) for _ in range(10)]
     return blurred_images 
 
-def generate_data(image_dir: str, image_list: str):
+def generate_data(image):
     '''
-    Generate augmented data and return list of images with corresponding list of labels
+    Generate augmented data from single image and return list of images with corresponding list of labels
     '''
     expanded = []
-    for set in data:
-        for image_name in set:
-            image_path = os.path.join(image_dir, image_name)
-            image = Image.open(image_path)
-            expanded.append(image)
-            expanded.append(rotation(image))
-            expanded.append(pad(image))
-            expanded.append(pers(image))
-            expanded.append(aff(image))
-            expanded.append(blur(image))
+    expanded.append(image)
+    expanded.append(rotation(image))
+    expanded.append(pad(image))
+    expanded.append(pers(image))
+    expanded.append(aff(image))
+    expanded.append(blur(image))
     
-    return expanded[0], expanded[1], expanded[2], expanded[3]
+    return expanded
 
+def generate_labels(label, len):
+    '''
+    Generates list of labels corresponding to augmented data
+    '''
+    return [label] * len
+
+if __name__ == '__main__':
+    generate_data()
