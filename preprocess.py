@@ -11,6 +11,9 @@ import numpy as np
 import random 
 from PIL import Image
 
+from common import load_single_image
+import sys
+
 def ran_number(length):
     list = []
     for _ in range(length):
@@ -23,6 +26,7 @@ def rotation(image):
     '''
     rotater = v2.RandomRotation(degrees=(0, 180))
     rotated_images = [rotater(image) for _ in range(10)]
+    print(len(rotated_images))
     return rotated_images
 
 def pad(image):
@@ -61,12 +65,11 @@ def generate_data(image):
     Generate augmented data from single image and return list of images with corresponding list of labels
     '''
     expanded = []
-    expanded.append(image)
-    expanded.append(rotation(image))
-    expanded.append(pad(image))
-    expanded.append(pers(image))
-    expanded.append(aff(image))
-    expanded.append(blur(image))
+    expanded += rotation(image)
+    expanded += pad(image)
+    expanded += pers(image)
+    expanded += aff(image)
+    expanded += blur(image)
     
     return expanded
 
@@ -77,4 +80,12 @@ def generate_labels(label, len):
     return [label] * len
 
 if __name__ == '__main__':
-    generate_data()
+    '''
+    preprocess.py testing
+    python3 preprocess.py "Data - Is Epic Intro 2024-03-25" "apocalypse_v3_59sec-178285.mp3.png" 
+    '''
+    image_file_path = os.path.join(sys.argv[1], sys.argv[2])
+    image = load_single_image(image_file_path)
+    aug_data = generate_data(image)
+    for i in aug_data:
+        i.show()
