@@ -1,14 +1,19 @@
 import argparse
 import os
+import torch
 from typing import Any
 
 import pandas as pd
 from PIL import Image
 
+import torch.nn as nn
+from torchvision import datasets, models, transforms
+
 from common import load_model, load_predict_image_names, load_single_image
 
 
 ########################################################################################################################
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def parse_args():
     """
@@ -39,10 +44,26 @@ def predict(model: Any, image: Image) -> str:
     :param image: the image file to predict.
     :return: the label ('Yes' or 'No)
     """
-    predicted_label = 'No'
-    # TODO: Implement your logic to generate prediction for an image here.
-    raise RuntimeError("predict() is not implemented.")
-    return predicted_label
+    data_transforms = {
+        'val': transforms.Compose([
+                transforms.Resize(224),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ]),
+    }
+
+    model.eval()
+    model = model.to(device)
+    image = data_transforms['val'](image.convert("RGB"))
+    image = image[None,:,:,:]
+    image = image.to(device)
+    pred = model(image)
+    predicted_label = torch.max(pred, 1)[1].type(torch.int64).item()
+    if predicted_label == 0:
+        return "No"
+    else:
+        return "Yes"
 
 
 def main(predict_data_image_dir: str,

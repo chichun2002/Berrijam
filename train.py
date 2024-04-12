@@ -46,7 +46,8 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     :param resource_dir: the relative directory from train.py where resources are kept.
     :return: TBD
     """
-    model = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
+    model = torch.load('Pretrained_Models/vit_b')
+    # model = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
     for param in model.parameters():
         param.requires_grad = False
 
@@ -118,18 +119,18 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
             print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
             # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model = model
+            # if phase == 'val' and epoch_acc > best_acc:
+            #     best_acc = epoch_acc
+            #     best_model = model
 
         # print()
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    print(f'Best val Acc: {best_acc:4f}')
+    # print(f'Best val Acc: {best_acc:4f}')
 
     # load best model weights
-    model = best_model
+    # model = best_model
     return model
 
 
@@ -181,19 +182,33 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             print(f"Error loading {index}: {filename} due to {ex}")
     print(f"Loaded {len(train_labels)} training images and labels")
 
+    class AddGaussianNoise(object):
+        def __init__(self, mean=0., std=1.):
+            self.std = std
+            self.mean = mean
+            
+        def __call__(self, tensor):
+            return tensor + torch.randn(tensor.size()) * self.std + self.mean
+        
+        def __repr__(self):
+            return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+    
     data_transforms = {
         'train': transforms.Compose([
+            transforms.RandomResizedCrop(224,scale=(0.001, 1)),
             transforms.Resize(224),
             transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(0.5),
+            transforms.RandomVerticalFlip(0.5),
+            transforms.ColorJitter(brightness=(0.5,1.5),contrast=(1),saturation=(0.5,1.5),hue=(-0.1,0.1)),
             transforms.AutoAugment(policy= transforms.AutoAugmentPolicy.IMAGENET),
-            # transforms.RandomPerspective(distortion_scale=0.6, p=1.0),
-            # transforms.ColorJitter(brightness=.5, hue=.3),
-            # transforms.RandomResizedCrop(size=(224,224)),
-            # transforms.ElasticTransform(alpha=250.0),
+            transforms.GaussianBlur(5, sigma=(0.1, 2.0)),
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            # AddGaussianNoise(0., 1.),
         ]),
         'val': transforms.Compose([
+            # transforms.RandomResizedCrop(224,scale=(0.001, 1)),
             transforms.Resize(224),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -201,21 +216,45 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         ]),
     }
 
-    dataset_train = create_dataset(train_images[:14], train_labels[:14], data_transforms['train'])
-    dataset_val = create_dataset(train_images[14:], train_labels[14:], data_transforms['val'])
+    dataset_train = create_dataset(train_images[:16], train_labels[:16], data_transforms['train'])
+    dataset_val = create_dataset(train_images[16:], train_labels[16:], data_transforms['val'])
 
     dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
 
     # Create the output directory and don't error if it already exists.
     os.makedirs(train_output_dir, exist_ok=True)
 
+    # Uncomment TO SHOW IMAGES
+
+    # def imshow(inp, title=None):
+    #     """Display image for Tensor."""
+    #     inp = inp.numpy().transpose((1, 2, 0))
+    #     mean = np.array([0.485, 0.456, 0.406])
+    #     std = np.array([0.229, 0.224, 0.225])
+    #     inp = std * inp + mean
+    #     inp = np.clip(inp, 0, 1)
+    #     plt.imshow(inp)
+    #     if title is not None:
+    #         plt.title(title)
+    #     plt.pause(0.001)  # pause a bit so that plots are updated
+
+
+    # # Get a batch of training data
+    # inputs, classes = next(iter(dataloaders['train']))
+
+    # # Make a grid from batch
+    # out = torchvision.utils.make_grid(inputs)
+
+    # imshow(out, title="kek")
+    # plt.show()
+
     # train a model for this task
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
     criterion = nn.CrossEntropyLoss()
-
-    model = train('output', model, 50, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
-
+    epochs = 100 #EPOCHS
+    model = train('output', model, epochs, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
+    
     # save model
     save_model(model, target_column_name, train_output_dir)
 
