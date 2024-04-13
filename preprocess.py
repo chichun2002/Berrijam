@@ -3,10 +3,7 @@ from typing import Any
 
 import pandas as pd
 
-import torch
 from torchvision.transforms import v2
-from torchvision.io import read_image
-from torchvision.utils import save_image
 
 import cv2
 import numpy as np
@@ -14,33 +11,14 @@ import numpy as np
 import random 
 from PIL import Image
 
-from common import load_image_labels, load_predict_image_names, load_single_image
+from common import load_single_image
+import sys
 
 def ran_number(length):
     list = []
-    for i in range(length):
+    for _ in range(length):
         list.append(random.randint(1,100))
     return list
-
-def load_train_test(image_dir: str, image_list: str):
-    '''
-    Loads the images and splits them into the test and train
-    '''
-    image_list_file = os.path.join(image_dir, image_list)
-    image_label = load_image_labels(image_list_file)
-
-    pos = []
-    neg = []
-    for filename, label in zip(list(image_label['Filename']),list(image_label['Is Epic'])):
-        if (label == "Yes"):
-            pos.append(filename)
-        else:
-            neg.append(filename)
-
-    pos_test = pos.pop(random.randrange(len(pos)))
-    neg_test = neg.pop(random.randrange(len(neg)))
-
-    return pos, [pos_test], neg, [neg_test]
 
 def rotation(image):
     '''
@@ -48,6 +26,19 @@ def rotation(image):
     '''
     rotater = v2.RandomRotation(degrees=(0, 180))
     rotated_images = [rotater(image) for _ in range(10)]
+    return rotated_images
+
+def rotation_multi(images):
+    '''
+    Created 10 random rotations on a single image
+    '''
+    try:
+        rotated_images = []
+        for image in images:
+            rotater = v2.RandomRotation(degrees=(0, 180))
+            rotated_images += [rotater(image) for _ in range(10)]
+    except:
+        rotated_images = rotation(images)
     return rotated_images
 
 def pad(image):
@@ -81,91 +72,64 @@ def blur(image):
     blurred_images = [blurrer(image) for _ in range(10)]
     return blurred_images 
 
-def crop():
+def elasticTransform(image):
+    elastic_transformer = v2.ElasticTransform(alpha=250.0)
+    return [elastic_transformer(image) for _ in range(10)]
+
+def colourJitter(image):
+    jitter = v2.ColorJitter(brightness=.5, hue=.3)
+    return [jitter(image) for _ in range(10)]
+
+def randomInvert(image):
+    inverter = v2.RandomInvert()
+    return [inverter(image) for _ in range(4)]
+
+def randomPosterize(image):
+    posterizer = v2.RandomPosterize(bits=2)
+    return [posterizer(image) for _ in range(4)]
+
+def randomSolarize(image):
+    solarizer = v2.RandomSolarize(threshold=10.0)
+    return [solarizer(image) for _ in range(4)]
+
+
+def generate_data(image):
     '''
-    Crops white frame from images
+    Generate augmented data from single image and return list of images with corresponding list of labels
     '''
-    # load image
-    img = cv2.imread("data1/better-day-186374.mp3.png", cv2.IMREAD_GRAYSCALE)
-
-    # threshold
-    thresh = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY)[1]
-
-    # apply open morphology
-    #kernel = np.ones((5,5), np.uint8)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15,15))
-    morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-    
-    # get bounding box coordinates from largest external contour
-    contours = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = contours[0] if len(contours) == 2 else contours[1]
-    big_contour = max(contours, key=cv2.contourArea)
-    x,y,w,h = cv2.boundingRect(big_contour)
-
-    # crop image contour image
-    result = img.copy()
-    result = result[y:y+h, x:x+w]
-
-    # # write result to disk
-    # cv2.imwrite("sonar_thresh.jpg", thresh)
-    # cv2.imwrite("sonar_morph.jpg", morph)
-    # cv2.imwrite("sonar_cropped.png", result)
-
-    # display results
-    cv2.imshow("THRESH", thresh)
-    cv2.imshow("MORPH", morph)
-    cv2.imshow("CROPPED", result)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-def processed_data(image_dir: str, image_list: str):
-    data = load_train_test(image_dir, image_list)
+    # convert_tensor = v2.ToTensor()
+    # image = convert_tensor(image)
     expanded = []
-    for set in data:
-        for image_name in set:
-            image_path = os.path.join(image_dir, image_name)
-            image = Image.open(image_path)
-            expanded.append(image)
-            expanded.append(rotation(image))
-            expanded.append(pad(image))
-            expanded.append(pers(image))
-            expanded.append(aff(image))
-            expanded.append(blur(image))
+    expanded += rotation(image)
+    # for i in expanded[1:10]:
+    #     expanded += pad(i)
     
-    return expanded[0], expanded[1], expanded[2], expanded[3]
+    expanded.extend(pad(image))
+    expanded.extend(pers(image))
+    expanded.extend(aff(image))
+    expanded.extend(blur(image))
 
-def augmented_data_to_csv(image_dir: str, image_list: str):
+    # expanded += randomSolarize(image)
+    
+    return expanded
+
+def generate_labels(label, len):
     '''
-    Writes the images names to csv and saves images
+    Generates list of labels corresponding to augmented data
     '''
-    image_list_file_path = os.path.join(image_dir, image_list)
-    image_list_file = []
+    return [label] * len
 
-    data = processed_data(image_dir,image_list)
-    dataset = 0
-    for set in data:
-        i = 0
-
-        for augmented_image in set:
-            label = 'Yes'
-            if dataset is 3 or dataset is 4:
-                label = 'No'
-
-            imagename = f'augmented_image_{i}_{label}.png'
-            if dataset is 1 or dataset is 3:
-                imagename = f'augmented_training_image_{i}_{label}.png'
-
-            if i is 0:
-                imagename = f'image_{i}_{label}.png'
-                if dataset is 1 or dataset is 3:
-                    imagename = f'training_image_{i}_{label}.png'
-
-            savepath = os.path.join(image_dir, imagename)
-            save_image(augmented_image, savepath)
-            
-            new_image = {'Filename': imagename, 'Is Epic': label}
-            image_list_file.append(new_image, ignore_index=True)
-
-            image_list_file.to_csv(image_list_file_path, index=False)
-            i += 1
-        dataset += 1
+if __name__ == '__main__':
+    '''
+    preprocess.py testing
+    python3 preprocess.py "Data - Is Epic Intro 2024-03-25" "apocalypse_v3_59sec-178285.mp3.png" 
+    '''
+    image_file_path = os.path.join(sys.argv[1], sys.argv[2])
+    image = load_single_image(image_file_path)
+    aug_data = generate_data(image)
+    print(len(aug_data))
+    # aug_data[len(aug_data) - 1].show()
+    # for i in aug_data[len(aug_data) - 1]:
+    #     i.show()
+    # im = aug_data[2].convert["RGB"]
+    # im.show()
