@@ -17,8 +17,14 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from tempfile import TemporaryDirectory
 
+<<<<<<< Updated upstream
 from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset
 
+=======
+from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset, create_data_transform
+from preprocess import generate_data, generate_labels
+from sklearn.model_selection import train_test_split
+>>>>>>> Stashed changes
 
 ########################################################################################################################
 
@@ -51,13 +57,65 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     for param in model.parameters():
         param.requires_grad = False
 
+<<<<<<< Updated upstream
     # Parameters of newly constructed modules have requires_grad=True by default
     num_ftrs = model.hidden_dim
     model.heads = nn.Linear(num_ftrs, 2)
     return model
+=======
+    # # Load the second model (Vit)
+    # model_vit = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
+    # for param in model_vit.parameters():
+    #     param.requires_grad = False
+    # num_features_vit = model_vit.hidden_dim
+    # model_vit.heads = nn.Linear(num_features_vit, 2)
+    # models.append(("Vit_l", model_vit))
+    
+    # Load the second model (Vit)
+    model_vit = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
+    for param in model_vit.parameters():
+        param.requires_grad = False
+    num_features_vit = model_vit.hidden_dim
+    model_vit.heads = nn.Linear(num_features_vit, 2)
+    models.append(("Vit_b", model_vit))
+>>>>>>> Stashed changes
 
 
+<<<<<<< Updated upstream
 def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
+=======
+    # model_mnasnet = torch.load('Pretrained_Models/mnasnet')
+    # for param in model_mnasnet.parameters():
+    #     param.requires_grad = False 
+    # num_features_mnasnet = model_mnasnet.classifier[-1].in_features
+    # model_mnasnet.classifier[-1]  = nn.Linear(num_features_mnasnet, 2)
+    # models.append(("MnasNet", model_mnasnet))
+
+    # model_efficientnet = torch.load('Pretrained_Models/efficientnet')
+    # for param in model_efficientnet.parameters():
+    #     param.requires_grad = False
+    # num_features_efficientnet = model_efficientnet.classifier[-1].in_features
+    # model_efficientnet.classifier = nn.Linear(num_features_efficientnet, 2)
+    # models.append(("EfficientNet", model_efficientnet))
+    
+    # model_shufflenet = torch.load('Pretrained_Models/shufflenet')
+    # for param in model_shufflenet.parameters():
+    #     param.requires_grad = False
+    # num_features_shufflenet = model_shufflenet.fc.in_features
+    # model_shufflenet.fc = nn.Linear(num_features_shufflenet, 2)
+    # models.append(("ShuffleNet", model_shufflenet))
+    
+    # model_regnet = torch.load('Pretrained_Models/regnet')
+    # for param in model_regnet.parameters():
+    #     param.requires_grad = False
+    # num_features_regnet = model_regnet.fc.in_features
+    # model_regnet.fc = nn.Linear(num_features_regnet, 2)
+    # models.append(("RegNet", model_regnet))
+    return models
+    
+
+def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
+>>>>>>> Stashed changes
     """
     Trains a classification model using the training images and corresponding labels.
 
@@ -133,6 +191,18 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
     # model = best_model
     return model
 
+
+def imshow(inp, title=None):
+    """Display image for Tensor."""
+    inp = inp.numpy().transpose((1, 2, 0))
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(0.001)  # pause a bit so that plots are updated
 
 def main(train_input_dir: str, train_labels_file_name: str, target_column_name: str, train_output_dir: str):
     """
@@ -224,6 +294,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     # Create the output directory and don't error if it already exists.
     os.makedirs(train_output_dir, exist_ok=True)
 
+<<<<<<< Updated upstream
     # Uncomment TO SHOW IMAGES
 
     # def imshow(inp, title=None):
@@ -259,6 +330,91 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     save_model(model, target_column_name, train_output_dir)
 
 
+=======
+    # augmented_images = []
+    # augemented_labels = []
+    # for image in train_images:
+    #     print("1")
+    #     aug_images = generate_data(image)  
+    #     print("2")
+    #     for augmented in aug_images:
+    #         augmented_images.append(augmented)
+    # print("1")
+    # # Convert PIL.Image.Image objects to PIL.PngImagePlugin.PngImageFile objects
+    # for i in range(len(augmented_images)):
+    #     # Convert the image to bytes
+    #     img_byte_array = io.BytesIO()
+    #     augmented_images[i].save(img_byte_array, format='PNG')
+        
+    #     # Open the image from the bytes
+    #     augmented_images[i] = Image.open(img_byte_array)
+        
+    # train_images.extend(augmented_images)
+    # print("2")
+    # for label in train_labels:
+    #     aug_labels = generate_labels(label, 50)
+    #     for augmented in aug_labels:
+    #         augemented_labels.append(augmented)
+            
+    # train_labels.extend(augemented_labels)
+    
+    # print(f"Loaded {len(train_images)} training images and labels with augmented data")
+    
+    # load pre-trained models or resources at this stage.
+    models = load_train_resources()
+    train_images, val_images, train_labels, val_labels = train_test_split(train_images, train_labels, test_size=0.2, random_state=42)
+    for name, model_obj in models:
+        model = model_obj.to(device)
+        
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
+        
+        # Perform inference on validation data with different image sizes
+        resize_sizes = [224] # Define a range of image sizes for evaluation during inference
+        best_accuracy = 0.0
+        optimal_resize_size = None
+
+        for size in resize_sizes:
+            transform = create_data_transform(size)
+
+            dataset_train = create_dataset(train_images, train_labels, transform['train'])
+            dataset_val = create_dataset(val_images, val_labels, transform['val'])
+            dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
+
+            model = train('output', model, name, 10, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
+
+            accuracy = evaluate_model(model, dataloaders['val'])
+
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                optimal_resize_size = size
+            
+        print(f"optimal_resize_size = {optimal_resize_size}")
+        
+        #SHOW IMAGE DEBUG
+        # Get a batch of training data
+        inputs, classes = next(iter(dataloaders['train']))
+        # Make a grid from batch
+        out = torchvision.utils.make_grid(inputs)
+        imshow(out, title="kek")
+        plt.show()
+            
+        transform = create_data_transform(optimal_resize_size)
+        dataset_train = create_dataset(train_images, train_labels, transform['train'])
+        dataset_val = create_dataset(val_images, val_labels, transform['val'])
+        dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
+        
+        model = train('output', model, name, 100, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
+        
+        print(f"Model = {name}, Best Accuracy = {best_accuracy}")
+        
+        save_model(model, name, target_column_name, train_output_dir)
+        
+    time_elapsed = time.time() - since
+    print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+    
+>>>>>>> Stashed changes
 if __name__ == '__main__':
     """
     Example usage:

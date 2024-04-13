@@ -1,2 +1,7 @@
 
 /Pretrained_Models
+path/to/models/Is GenAI/Vit_b_Is GenAI_model.pth
+path/to/models/Is Epic/Vit_b_Is Epic_model.pth
+__pycache__/preprocess.cpython-311.pyc
+__pycache__/common.cpython-311.pyc
+__pycache__/common.cpython-311.pyc
