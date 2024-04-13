@@ -92,6 +92,20 @@ def randomSolarize(image):
     solarizer = v2.RandomSolarize(threshold=10.0)
     return [solarizer(image) for _ in range(4)]
 
+def grayscale(images):
+    '''
+    Randomly Grayscales an image with 50% chance
+    '''
+    try:
+        random_Gray_images = []
+        for image in images:
+            gray = v2.RandomGrayscale([0.5])
+            random_Gray_images += gray(image)
+    except:
+        random_Gray_images = gray(images)
+    return random_Gray_images
+
+
 
 def generate_data(image):
     '''
