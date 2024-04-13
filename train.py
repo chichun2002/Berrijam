@@ -279,6 +279,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     # load pre-trained models or resources at this stage.
     models = load_train_resources()
     train_images, val_images, train_labels, val_labels = train_test_split(train_images, train_labels, test_size=0.2, random_state=42)
+    
     for name, model_obj in models:
         model = model_obj.to(device)
         
@@ -293,7 +294,6 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
 
         for size in resize_sizes:
             transform = create_data_transform(size)
-
             dataset_train = create_dataset(train_images, train_labels, transform['train'])
             dataset_val = create_dataset(val_images, val_labels, transform['val'])
             dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
