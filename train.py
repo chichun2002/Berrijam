@@ -17,14 +17,9 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from tempfile import TemporaryDirectory
 
-<<<<<<< Updated upstream
-from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset
-
-=======
 from common import load_image_labels, load_single_image, save_model, create_dataloader, create_dataset, create_data_transform
 from preprocess import generate_data, generate_labels
 from sklearn.model_selection import train_test_split
->>>>>>> Stashed changes
 
 ########################################################################################################################
 
@@ -52,17 +47,13 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     :param resource_dir: the relative directory from train.py where resources are kept.
     :return: TBD
     """
-    model = torch.load('Pretrained_Models/vit_b')
-    # model = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
-    for param in model.parameters():
-        param.requires_grad = False
+    models = []
 
-<<<<<<< Updated upstream
-    # Parameters of newly constructed modules have requires_grad=True by default
-    num_ftrs = model.hidden_dim
-    model.heads = nn.Linear(num_ftrs, 2)
-    return model
-=======
+    # model = torch.load('Pretrained_Models/vit_b')
+    # # model = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
+    # for param in model.parameters():
+    #     param.requires_grad = False
+
     # # Load the second model (Vit)
     # model_vit = torchvision.models.vit_l_16(weights='IMAGENET1K_V1')
     # for param in model_vit.parameters():
@@ -72,18 +63,14 @@ def load_train_resources(resource_dir: str = 'resources') -> Any:
     # models.append(("Vit_l", model_vit))
     
     # Load the second model (Vit)
-    model_vit = torchvision.models.vit_b_16(weights='IMAGENET1K_V1')
+    model_vit = torch.load('Pretrained_Models/vit_b')
     for param in model_vit.parameters():
         param.requires_grad = False
     num_features_vit = model_vit.hidden_dim
     model_vit.heads = nn.Linear(num_features_vit, 2)
     models.append(("Vit_b", model_vit))
->>>>>>> Stashed changes
 
 
-<<<<<<< Updated upstream
-def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
-=======
     # model_mnasnet = torch.load('Pretrained_Models/mnasnet')
     # for param in model_mnasnet.parameters():
     #     param.requires_grad = False 
@@ -115,7 +102,6 @@ def train(output_dir: str, model, num_epochs, dataloader, size, optimizer, sched
     
 
 def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optimizer, scheduler, criterion) -> Any:
->>>>>>> Stashed changes
     """
     Trains a classification model using the training images and corresponding labels.
 
@@ -191,6 +177,20 @@ def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optim
     # model = best_model
     return model
 
+def evaluate_model(model, dataloader):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    return correct / total
+
 
 def imshow(inp, title=None):
     """Display image for Tensor."""
@@ -219,11 +219,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     :param target_column_name: Name of the target column within the CSV file
     :param train_output_dir: the folder to save training output.
     """
-
-    # load pre-trained models or resources at this stage.
-    model = load_train_resources()
-    model = model.to(device)
-
+    since = time.time()
     # load label file
     labels_file_path = os.path.join(train_input_dir, train_labels_file_name)
     df_labels = load_image_labels(labels_file_path)
@@ -252,94 +248,15 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             print(f"Error loading {index}: {filename} due to {ex}")
     print(f"Loaded {len(train_labels)} training images and labels")
 
-    class AddGaussianNoise(object):
-        def __init__(self, mean=0., std=1.):
-            self.std = std
-            self.mean = mean
-            
-        def __call__(self, tensor):
-            return tensor + torch.randn(tensor.size()) * self.std + self.mean
-        
-        def __repr__(self):
-            return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
-    
-    data_transforms = {
-        'train': transforms.Compose([
-            transforms.RandomResizedCrop(224,scale=(0.001, 1)),
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
-            transforms.RandomHorizontalFlip(0.5),
-            transforms.RandomVerticalFlip(0.5),
-            transforms.ColorJitter(brightness=(0.5,1.5),contrast=(1),saturation=(0.5,1.5),hue=(-0.1,0.1)),
-            transforms.AutoAugment(policy= transforms.AutoAugmentPolicy.IMAGENET),
-            transforms.GaussianBlur(5, sigma=(0.1, 2.0)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            # AddGaussianNoise(0., 1.),
-        ]),
-        'val': transforms.Compose([
-            # transforms.RandomResizedCrop(224,scale=(0.001, 1)),
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ]),
-    }
-
-    dataset_train = create_dataset(train_images[:16], train_labels[:16], data_transforms['train'])
-    dataset_val = create_dataset(train_images[16:], train_labels[16:], data_transforms['val'])
-
-    dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
-
     # Create the output directory and don't error if it already exists.
     os.makedirs(train_output_dir, exist_ok=True)
 
-<<<<<<< Updated upstream
-    # Uncomment TO SHOW IMAGES
-
-    # def imshow(inp, title=None):
-    #     """Display image for Tensor."""
-    #     inp = inp.numpy().transpose((1, 2, 0))
-    #     mean = np.array([0.485, 0.456, 0.406])
-    #     std = np.array([0.229, 0.224, 0.225])
-    #     inp = std * inp + mean
-    #     inp = np.clip(inp, 0, 1)
-    #     plt.imshow(inp)
-    #     if title is not None:
-    #         plt.title(title)
-    #     plt.pause(0.001)  # pause a bit so that plots are updated
-
-
-    # # Get a batch of training data
-    # inputs, classes = next(iter(dataloaders['train']))
-
-    # # Make a grid from batch
-    # out = torchvision.utils.make_grid(inputs)
-
-    # imshow(out, title="kek")
-    # plt.show()
-
-    # train a model for this task
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
-    criterion = nn.CrossEntropyLoss()
-    epochs = 100 #EPOCHS
-    model = train('output', model, epochs, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
-    
-    # save model
-    save_model(model, target_column_name, train_output_dir)
-
-
-=======
     # augmented_images = []
     # augemented_labels = []
     # for image in train_images:
-    #     print("1")
     #     aug_images = generate_data(image)  
-    #     print("2")
     #     for augmented in aug_images:
     #         augmented_images.append(augmented)
-    # print("1")
     # # Convert PIL.Image.Image objects to PIL.PngImagePlugin.PngImageFile objects
     # for i in range(len(augmented_images)):
     #     # Convert the image to bytes
@@ -350,7 +267,6 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     #     augmented_images[i] = Image.open(img_byte_array)
         
     # train_images.extend(augmented_images)
-    # print("2")
     # for label in train_labels:
     #     aug_labels = generate_labels(label, 50)
     #     for augmented in aug_labels:
@@ -392,13 +308,13 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             
         print(f"optimal_resize_size = {optimal_resize_size}")
         
-        #SHOW IMAGE DEBUG
-        # Get a batch of training data
-        inputs, classes = next(iter(dataloaders['train']))
-        # Make a grid from batch
-        out = torchvision.utils.make_grid(inputs)
-        imshow(out, title="kek")
-        plt.show()
+        # #SHOW IMAGE DEBUG
+        # # Get a batch of training data
+        # inputs, classes = next(iter(dataloaders['train']))
+        # # Make a grid from batch
+        # out = torchvision.utils.make_grid(inputs)
+        # imshow(out, title="kek")
+        # plt.show()
             
         transform = create_data_transform(optimal_resize_size)
         dataset_train = create_dataset(train_images, train_labels, transform['train'])
@@ -414,7 +330,6 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
     
->>>>>>> Stashed changes
 if __name__ == '__main__':
     """
     Example usage:
