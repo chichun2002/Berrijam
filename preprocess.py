@@ -112,28 +112,28 @@ def colourJitter(images):
 
 def randomInvert(images):
     '''
-    Creates 10 random inverts from a single or list of image
+    Randomly inverts from a single or list of image
     '''
-    inverter = v2.RandomInvert()
+    inverter = v2.RandomInvert(p = 0.5)
     try:
         inverter_images = []
         for image in images:
-            inverter_images.extend([inverter(image) for _ in range(10)])
+            inverter_images.extend(inverter(image))
     except:
-        inverter_images = [inverter(image) for _ in range(10)]
+        inverter_images = inverter(image)
     return inverter_images
 
 def randomPosterize(images):
     '''
-    Creates 10 random posterize from a single or list of image
+    Randomly posterize with 50% chance from a single or list of image
     '''
-    posterizer = v2.RandomPosterize(bits=2)
+    posterizer = v2.RandomPosterize(bits = 2,p = 0.5)
     try:
         posterize_images = []
         for image in images:
-            posterize_images.extend([posterizer(image) for _ in range(10)])
+            posterize_images.extend(posterizer(image))
     except:
-        posterize_images = [posterizer(image) for _ in range(10)]
+        posterize_images = posterizer(image)
     return posterize_images
 
 def randomSolarize(images):
@@ -151,16 +151,29 @@ def randomSolarize(images):
 
 def grayscale(images):
     '''
-    Randomly Grayscales an image with 50% chance
+    Randomly Grayscales an image with 50% chance from a single or list of image
     '''
+    gray = v2.RandomGrayscale(p = 0.5)
     try:
         random_Gray_images = []
         for image in images:
-            gray = v2.RandomGrayscale([0.5])
-            random_Gray_images += gray(image)
+            random_Gray_images.extend(gray(image)) 
     except:
         random_Gray_images = gray(images)
     return random_Gray_images
+
+def sharpen(images):
+    '''
+    Sharpens an image with 50% chance from a single or list of image
+    '''
+    sharpness_adjuster = v2.RandomAdjustSharpness(sharpness_factor = 2, p = 0.5)
+    try:
+        sharpened_images = []
+        for image in images:
+            sharpened_images.extend(sharpness_adjuster(image))
+    except:
+        sharpened_images = sharpness_adjuster(images)
+    return sharpened_images
 
 def generate_data(image):
     '''
@@ -173,10 +186,8 @@ def generate_data(image):
     # for i in expanded[1:10]:
     #     expanded += pad(i)
     
-    expanded.extend(pad(image))
-    expanded.extend(pers(image))
-    expanded.extend(aff(image))
-    expanded.extend(blur(image))
+    expanded.extend(rotation(blur(aff(pers(pad(image))))))
+
 
     # expanded += randomSolarize(image)
     
