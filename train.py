@@ -308,13 +308,13 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             
         print(f"optimal_resize_size = {optimal_resize_size}")
         
-        # #SHOW IMAGE DEBUG
-        # # Get a batch of training data
-        # inputs, classes = next(iter(dataloaders['train']))
-        # # Make a grid from batch
-        # out = torchvision.utils.make_grid(inputs)
-        # imshow(out, title="kek")
-        # plt.show()
+        #SHOW IMAGE DEBUG
+        # Get a batch of training data
+        inputs, classes = next(iter(dataloaders['train']))
+        # Make a grid from batch
+        out = torchvision.utils.make_grid(inputs)
+        imshow(out, title="kek")
+        plt.show()
             
         transform = create_data_transform(optimal_resize_size)
         dataset_train = create_dataset(train_images, train_labels, transform['train'])
