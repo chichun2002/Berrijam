@@ -24,7 +24,6 @@ def create_dataset(images, labels, transform):
     return CustomImageDataset(images, labels, transform)
 
 def create_dataloader(dataset):
-
     dl = torch.utils.data.DataLoader(dataset, batch_size = 4, shuffle=True, num_workers=0)
     return dl
 
@@ -33,6 +32,7 @@ def create_data_transform(input_size):
             'train': transforms.Compose([
                 transforms.RandomResizedCrop(input_size,scale=(0.001, 1)),
                 transforms.Resize(input_size),
+                # transforms.RandomAffine(degrees=(30, 70), translate=(0.1, 0.3), scale=(0.5, 0.75)),
                 transforms.CenterCrop(input_size),
                 transforms.RandomHorizontalFlip(0.5),
                 transforms.RandomVerticalFlip(0.5),
@@ -50,6 +50,7 @@ def create_data_transform(input_size):
             ]),
         }
     return data_transforms
+
 ########################################################################################################################
 # Data Loading functions
 ########################################################################################################################
@@ -158,7 +159,7 @@ def save_model(model: Any, model_name: str, target: str, output_dir: str):
     model_file_path = os.path.join(output_dir, f"{model_name}_{target}_model.pth")
 
     # Save the model
-    torch.save(model.state_dict(), model_file_path)
+    torch.save(model, model_file_path)
 
     print(f"Model '{model_name}' saved successfully at {model_file_path}")
 

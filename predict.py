@@ -52,9 +52,11 @@ def predict(model: Any, image: Image) -> str:
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ]),
     }
-
+    print("test")
     model.eval()
+    print("test")
     model = model.to(device)
+    print("device")
     image = data_transforms['val'](image.convert("RGB"))
     image = image[None,:,:,:]
     image = image.to(device)
@@ -100,7 +102,9 @@ def main(predict_data_image_dir: str,
         try:
             image_path = os.path.join(predict_data_image_dir, filename)
             image = load_single_image(image_path)
+            # print(model)
             label = predict(model, image)
+            # print("test")
             predictions.append(label)
         except Exception as ex:
             print(f"Error generating prediction for {filename} due to {ex}")
