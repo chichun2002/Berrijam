@@ -111,7 +111,6 @@ def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optim
     best_model_params_path = os.path.join(tempdir, 'best_model_params.pt')
     
     print(size)
-    #since = time.time()
     best_acc = 0.0
     best_loss = float('inf')
 
@@ -171,29 +170,6 @@ def train(output_dir: str, model, name: str, num_epochs, dataloader, size, optim
     print(f'Model: {name}')
     print(f'Best val Acc: {best_acc:.4f}')
     print(f'Corresponding Loss: {best_loss:.4f}')
-
-    # # # Plotting training and validation loss/accuracy curves
-    
-    # plt.figure(figsize=(10, 5))
-    # plt.subplot(1, 2, 1)
-    # plt.plot(train_losses, label=f'Training Loss ({name})')
-    # plt.plot(val_losses, label=f'Validation Loss ({name})')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('Loss')
-    # plt.legend()
-
-    # plt.subplot(1, 2, 2)
-    # plt.plot(train_accs, label=f'Training Accuracy ({name})')
-    # plt.plot(val_accs, label=f'Validation Accuracy ({name})')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('Accuracy')
-    # plt.legend()
-
-    # plt.tight_layout()
-    # # Save the plot in the current working directory
-    # plot_file_path = f"{name}_training_curves.png"
-    # plt.savefig(plot_file_path)
-    # print(f"Training curves saved successfully at {plot_file_path}")
 
     model.load_state_dict(torch.load(best_model_params_path))
     shutil.rmtree(tempdir)
@@ -298,15 +274,16 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
 
+        print("Inference resize tuning\n")
         for size in resize_sizes:
             transform = create_data_transform(size)
             dataset_train = create_dataset(train_images, train_labels, transform['train'])
             dataset_val = create_dataset(val_images, val_labels, transform['val'])
             dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
 
-            model = train('output', model, name, 20, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
+            output_model = train('output', model, name, 20, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
 
-            accuracy = evaluate_model(model, dataloaders['val'])
+            accuracy = evaluate_model(output_model, dataloaders['val'])
 
             if accuracy > best_accuracy:
                 best_accuracy = accuracy
@@ -314,13 +291,13 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             
         print(f"optimal_resize_size = {optimal_resize_size}")
         
-        #SHOW IMAGE DEBUG
-        # Get a batch of training data
-        inputs, classes = next(iter(dataloaders['train']))
-        # Make a grid from batch
-        out = torchvision.utils.make_grid(inputs)
-        imshow(out, title="kek")
-        plt.show()
+        # #SHOW IMAGE DEBUG
+        # # Get a batch of training data
+        # inputs, classes = next(iter(dataloaders['train']))
+        # # Make a grid from batch
+        # out = torchvision.utils.make_grid(inputs)
+        # imshow(out, title="kek")
+        # plt.show()
             
         #transform = create_data_transform(224)
         transform = create_data_transform(optimal_resize_size)
@@ -328,6 +305,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
         dataset_val = create_dataset(val_images, val_labels, transform['val'])
         dataloaders = {'train' : create_dataloader(dataset_train), 'val' : create_dataloader(dataset_val)}
         # Perform hyperparameter search
+        print("Hyperparameter optimisation\n")
         for lr in learning_rates:
             for step_size in step_sizes:
                 for gamma in gammas:
@@ -341,19 +319,18 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
                         exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
                         print(f"Learning Rate: {lr}, Step Size: {step_size}, Gamma: {gamma}, Optimizer Type: {optimizer_type}")
                         
-                        model = train('output', model, name, 20, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
+                        output_model = train('output', model, name, 50, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, optimizer, exp_lr_scheduler, criterion)
                         # Evaluate model on validation set and store results
-                        val_accuracy = evaluate_model(model, dataloaders['val'])
+                        val_accuracy = evaluate_model(output_model, dataloaders['val'])
 
                         # Store hyperparameters and validation accuracy
                         cv_results[(lr, step_size, gamma, optimizer_type)].append(val_accuracy)
                         
-         # Select the best hyperparameters
+        # Select the best hyperparameters
         best_hyperparameters = max(cv_results, key=lambda k: np.mean(cv_results[k]))
         best_lr, best_step_size, best_gamma, best_optimizer_type = best_hyperparameters
 
         print("Best hyperparameters:")
-        print(best_hyperparameters)
         print(f"Learning Rate: {best_lr}")
         print(f"Step Size: {best_step_size}")
         print(f"Gamma: {best_gamma}")
@@ -365,7 +342,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
             best_optimizer = optim.SGD(model.parameters(), lr=best_lr)
             
         best_exp_lr_scheduler = lr_scheduler.StepLR(best_optimizer, best_step_size, best_gamma)
-        model = train('output', model, name, 50, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, best_optimizer, best_exp_lr_scheduler, criterion)
+        model = train('output', model, name, 100, dataloaders, {'train': len(dataset_train), 'val':len(dataset_val)}, best_optimizer, best_exp_lr_scheduler, criterion)
         accuracy = evaluate_model(model, dataloaders['val'])  
         print()  
         print(f"Model = {name}, Final Accuracy = {accuracy}")
