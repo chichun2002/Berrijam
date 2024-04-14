@@ -27,6 +27,29 @@ def create_dataloader(dataset):
 
     dl = torch.utils.data.DataLoader(dataset, batch_size = 4, shuffle=True, num_workers=0)
     return dl
+
+def create_data_transform(input_size):
+    data_transforms = {
+            'train': transforms.Compose([
+                transforms.RandomResizedCrop(input_size,scale=(0.001, 1)),
+                transforms.Resize(input_size),
+                transforms.CenterCrop(input_size),
+                transforms.RandomHorizontalFlip(0.5),
+                transforms.RandomVerticalFlip(0.5),
+                transforms.ColorJitter(brightness=(0.5,1.5),contrast=(1),saturation=(0.5,1.5),hue=(-0.1,0.1)),
+                transforms.AutoAugment(policy= transforms.AutoAugmentPolicy.IMAGENET),
+                transforms.GaussianBlur(5, sigma=(0.1, 2.0)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]),
+            'val': transforms.Compose([
+                transforms.Resize(input_size),
+                transforms.CenterCrop(input_size),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ]),
+        }
+    return data_transforms
 ########################################################################################################################
 # Data Loading functions
 ########################################################################################################################
@@ -153,5 +176,6 @@ def load_model(trained_model_dir: str, target_column_name: str) -> Any:
     :param target_column_name: the target value - can be useful to name the model file for the target it is intended for
     :returns: the model
     """
-    # TODO: implement your model loading code here
-    raise RuntimeError("load_model() is not implemented.")
+    for item in os.listdir(trained_model_dir):
+        path = os.path.join(trained_model_dir, item)
+        return torch.load(path)

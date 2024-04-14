@@ -270,10 +270,7 @@ def main(train_input_dir: str, train_labels_file_name: str, target_column_name: 
     for lr in learning_rates:
         for step_size in step_sizes:
             for gamma in gammas:
-                for optimizer_type in ['Adam', 'SGD']:
-                    models = load_train_resources()
-                    for name, model in models:
-                        model = model.to(device)                     
+                for optimizer_type in ['Adam', 'SGD']:    
                         criterion = nn.CrossEntropyLoss()
                         if optimizer_type == 'Adam':
                             optimizer = optim.Adam(model.parameters(), lr=lr)

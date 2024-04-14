@@ -104,10 +104,10 @@ def generate_data(image):
     # for i in expanded[1:10]:
     #     expanded += pad(i)
     
-    expanded.extend(pad(image))
-    expanded.extend(pers(image))
-    expanded.extend(aff(image))
-    expanded.extend(blur(image))
+    expanded +=(pad(image))
+    expanded +=(pers(image))
+    expanded +=(aff(image))
+    expanded +=(blur(image))
 
     # expanded += randomSolarize(image)
     
