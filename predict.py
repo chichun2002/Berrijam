@@ -52,21 +52,28 @@ def predict(model: Any, image: Image) -> str:
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ]),
     }
-    print("test")
-    model.eval()
-    print("test")
-    model = model.to(device)
-    print("device")
+
     image = data_transforms['val'](image.convert("RGB"))
     image = image[None,:,:,:]
     image = image.to(device)
-    pred = model(image)
-    predicted_label = torch.max(pred, 1)[1].type(torch.int64).item()
-    if predicted_label == 0:
-        return "No"
-    else:
-        return "Yes"
 
+    yes_votes = 0
+    no_votes = 0
+
+    for m in model:
+        m.eval()
+        m = m.to(device)
+        pred = m(image)
+        predicted_label = torch.max(pred, 1)[1].type(torch.int64).item()
+        if predicted_label == 0:
+            no_votes += 1
+        else:
+            yes_votes += 1
+    print(f"yes: {yes_votes} no:{no_votes}")
+    if yes_votes >= no_votes:
+        return "Yes"
+    else:
+        return "No"
 
 def main(predict_data_image_dir: str,
          predict_image_list: str,
@@ -103,6 +110,7 @@ def main(predict_data_image_dir: str,
             image_path = os.path.join(predict_data_image_dir, filename)
             image = load_single_image(image_path)
             # print(model)
+            print(filename)
             label = predict(model, image)
             # print("test")
             predictions.append(label)
